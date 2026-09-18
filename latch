@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# latch — unified CLI entrypoint. Thin dispatcher over bin/latch-*.sh so you
+# don't have to remember which script does what.
+#
+# Usage:
+#   latch doctor  <anchor>                       preflight checks
+#   latch start   <anchor> [profile] [port]       launch isolated browser
+#   latch tunnel  <anchor> [port] [local_port]     open/verify CDP tunnel
+#   latch status  <anchor> [port] [local_port]     health check
+#   latch stop    <anchor> [profile] [local_port]  tear down cleanly
+#   latch up      <anchor> [profile] [port]        doctor + start + tunnel + status, one shot
+set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CMD="${1:-}"; shift || true
+
+usage() {
+  sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  exit "${1:-0}"
+}
+
+case "$CMD" in
+  doctor) exec "${SELF_DIR}/bin/latch-doctor.sh" "$@" ;;
+  start)  exec "${SELF_DIR}/bin/latch-start.sh" "$@" ;;
+  tunnel) exec "${SELF_DIR}/bin/latch-tunnel.sh" "$@" ;;
+  status) exec "${SELF_DIR}/bin/latch-status.sh" "$@" ;;
+  stop)   exec "${SELF_DIR}/bin/latch-stop.sh" "$@" ;;
+  up)
+    ANCHOR="${1:?usage: latch up <anchor> [profile] [port]}"
+    PROFILE="${2:-/tmp/latch-profile}"
+    PORT="${3:-9333}"
+    "${SELF_DIR}/bin/latch-doctor.sh" "$ANCHOR"
+    "${SELF_DIR}/bin/latch-start.sh" "$ANCHOR" "$PROFILE" "$PORT"
+    "${SELF_DIR}/bin/latch-tunnel.sh" "$ANCHOR" "$PORT" "$PORT"
+    "${SELF_DIR}/bin/latch-status.sh" "$ANCHOR" "$PORT" "$PORT"
+    ;;
+  -h|--help|help|"") usage 0 ;;
+  *) echo "[latch] unknown command: ${CMD}" >&2; usage 1 ;;
+esac

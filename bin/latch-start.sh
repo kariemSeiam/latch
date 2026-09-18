@@ -64,7 +64,10 @@ nohup bash -c "nohup '$LAUNCH_SCRIPT' > /tmp/$(basename "$PROFILE_DIR").log 2>&1
 REMOTE
 
 echo "[latch] waiting for CDP on ${ANCHOR}:${CDP_PORT}..."
-for i in $(seq 1 10); do
+# Vars in the ssh command strings below intentionally expand client-side
+# (shellcheck SC2029) — CDP_PORT/PROFILE_DIR are agent-host config, not
+# anchor-side data, so local expansion is correct here.
+for _ in $(seq 1 10); do
   sleep 1
   UA=$(ssh "$ANCHOR" "curl -s http://127.0.0.1:${CDP_PORT}/json/version" 2>/dev/null | grep -o '"User-Agent":[^,]*' || true)
   if [ -n "$UA" ]; then
