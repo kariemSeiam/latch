@@ -2,6 +2,27 @@
 
 All notable changes to Latch are documented here.
 
+## [Unreleased]
+
+### Added
+- **Android anchor support.** Any rooted Android device reachable over SSH (Termux +
+  Magisk) now works as a Latch anchor, auto-detected via `getprop` — no new top-level
+  command needed, `latch-start.sh`/`latch doctor`/`latch stop` route to Android-specific
+  logic transparently.
+- `bin/latch-android-bridge.py` — a stdlib-only Python TCP<->abstract-unix-socket relay,
+  the missing piece that makes Android's `chrome_devtools_remote` abstract socket
+  reachable over a plain SSH `-L` tunnel (SSH forwarding only understands TCP; Android
+  Chrome never opens a real TCP CDP port, confirmed live against a real device).
+- `bin/latch-start-android.sh` — the Android equivalent of `latch-start.sh`: flips
+  Chrome's DevTools command-line flag, pushes and launches the bridge, verifies
+  `/json/version` responds before returning.
+- `latch-doctor.sh` and `latch-stop.sh` both gained an Android branch (root check,
+  Chrome-installed check, Termux python3 check for doctor; bridge+Chrome teardown via
+  `su -c` for stop) so the existing five-verb CLI shape didn't need to grow a sixth verb.
+- README "Android anchors" section and `docs/ARCHITECTURE.md` "Android: no TCP CDP port"
+  section documenting why this needed real new code (no TCP port, no `--headless` mode,
+  no swappable `--user-data-dir`) rather than a config flag on the existing scripts.
+
 ## [0.1.0] — 2026-09-18
 
 Initial public release.

@@ -7,12 +7,24 @@
 #
 # Requires: an existing Chrome/Chromium/Brave install on the anchor, and a
 # working `ssh <anchor_ssh_host>` (key-based, no password prompt).
+#
+# Android anchors (Termux + root) are auto-detected via `getprop` on the
+# remote host and routed through latch-start-android.sh instead — see that
+# script's header for why Android needs a materially different launch path
+# (no TCP CDP port exists on Android Chrome at all, only an abstract unix
+# socket) rather than a flag on this script's own logic.
 set -euo pipefail
 
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANCHOR="${1:?usage: latch-start.sh <ssh_host> [profile_dir] [cdp_port]}"
 PROFILE_DIR="${2:-/tmp/latch-profile}"
 CDP_PORT="${3:-9333}"
 BROWSER_BIN="${LATCH_BROWSER_BIN:-}"
+
+if [ -z "${LATCH_FORCE_DESKTOP:-}" ] && ssh -o ConnectTimeout=8 -o BatchMode=yes "$ANCHOR" 'command -v getprop' >/dev/null 2>&1; then
+  echo "[latch] anchor identifies as Android (getprop present) — routing to latch-start-android.sh"
+  exec "${SELF_DIR}/latch-start-android.sh" "$ANCHOR" "$CDP_PORT"
+fi
 
 echo "[latch] resolving a browser binary on ${ANCHOR}..."
 if [ -z "$BROWSER_BIN" ]; then

@@ -104,6 +104,36 @@ Hermes/Claude-family agent tooling with `browser_exec`:
 hermes config set browser.cdp_url "http://127.0.0.1:9333"
 ```
 
+## Android anchors
+
+Any rooted Android device reachable over SSH (Termux + Magisk — the same setup Tailscale-based
+personal-device toolkits already assume) works as an anchor too, no separate command needed:
+`latch-start.sh`/`latch doctor`/`latch stop` auto-detect Android via `getprop` on the remote host
+and route to Android-specific logic automatically.
+
+```bash
+./bin/latch-doctor.sh you@your-phone-tailscale-ip   # flags root/Chrome/python3 gaps explicitly
+./bin/latch-start.sh  you@your-phone-tailscale-ip   # detects Android, routes to the Android path
+./bin/latch-tunnel.sh you@your-phone-tailscale-ip   # identical to the desktop path — no changes
+```
+
+**Why Android needed real new code, not just a different binary path:** Android Chrome never
+opens a real TCP port for `--remote-debugging-port`, even with the flag set — confirmed live
+against a real device (Pixel 3a XL, Chrome 153): the only thing that ever appears is a Linux
+*abstract* unix socket, `chrome_devtools_remote` (the same target `adb forward` uses over USB).
+SSH's `-L` can forward a TCP port to another TCP port; it has no notion of an abstract unix
+socket at all. `bin/latch-android-bridge.py` closes that gap: a small stdlib-only daemon that
+runs on the anchor and relays local TCP connections into the abstract socket, so the rest of the
+pipeline (`latch-tunnel.sh`, `latch-status.sh`, `latch-stop.sh`) works completely unmodified once
+it's running. See `docs/ARCHITECTURE.md` for the full bridge design and the fingerprint
+implications (a real mobile Chrome UA is actually a *better* anti-detection story than desktop
+headless, not a compromise).
+
+Requirements beyond the desktop path: root (`su -c` — the bridge itself needs no elevated
+privilege, but flipping Chrome's DevTools flag and force-stopping/relaunching it does), Chrome
+installed, and Termux's bundled `python3` (present by default on any standard Termux install).
+`latch doctor` checks all three explicitly and names exactly which one is missing.
+
 ## Requirements
 
 - An "anchor" device with a real residential/mobile IP, an installed Chromium-family browser, and
